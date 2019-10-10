@@ -16,6 +16,7 @@ struct _config {
     std::string ip;
     uint16_t port;
     uint16_t uid;
+    uintptr_t ref;
 
 };
 

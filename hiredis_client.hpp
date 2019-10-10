@@ -33,15 +33,11 @@ public:
     std::string set(request& req);
     _config get_config();
 
-    bool stoped = false;
-
-
 
 private:
     void connect();
     bool is_alive();
     void parse_cluster_nodes_string();
-    void config_updater();
 
     unsigned int j;
     bool get_succsess = false;
@@ -53,7 +49,6 @@ private:
     _config con_config;
     std::mutex con_config_mutex;
 
-    boost::thread *ConfigUpdaterThread = nullptr;
     std::vector <std::string> raw_string_parts;
     std::string myself;
 

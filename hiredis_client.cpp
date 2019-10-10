@@ -5,12 +5,10 @@ hiredis_client::hiredis_client(std::string _hostname, uint16_t _port, uint16_t u
     con_config.ip = _hostname;
     con_config.port = _port;
     con_config.uid = uid;
+    con_config.ref = reinterpret_cast<uintptr_t>(this);
 
     if (c == nullptr)
         connect();
-
-    // Создадим поток для валидатора соединения обработчика
-    ConfigUpdaterThread    = new boost::thread(   boost::bind(&hiredis_client::config_updater, this) , nullptr );
 
 }
 
@@ -22,7 +20,40 @@ hiredis_client::~hiredis_client()
 
 _config hiredis_client::get_config()
 {
-    std::lock_guard<std::mutex> guard(con_config_mutex);
+    try {
+        reply = static_cast<redisReply*>(redisCommand(c,"CLUSTER NODES" ));
+        if (reply == nullptr)
+        {
+            std::cout << "No answer on CLUSTER NODES " << std::endl;
+            std::lock_guard<std::mutex> guard(con_config_mutex);
+            con_config.state = _state::disconnected;
+        }
+        else{
+
+            split(raw_string_parts, reply->str , boost::is_any_of("\n"));
+            // ===================================================
+            for (const auto &part : raw_string_parts)
+            {
+                std::size_t found = part.find("myself");
+                if (found!=std::string::npos)
+                    myself = part;
+
+
+            }
+            raw_string_parts.clear();
+            parse_cluster_nodes_string();
+            freeReplyObject(reply);
+
+        }
+    } catch (...) {
+        std::lock_guard<std::mutex> guard(con_config_mutex);
+        con_config.state = _state::disconnected;
+
+        redisFree(c);
+        connect();
+
+    }
+
     return con_config;
 }
 
@@ -183,49 +214,6 @@ void hiredis_client::del(request& req)
             throw std::runtime_error( "No data for del " + req.key + " more than 1 min  " );
         }
     }
-}
-
-void hiredis_client::config_updater()
-{
-    while(!stoped)
-    {
-        std::this_thread::sleep_for(std::chrono::milliseconds(500)); // 0.5 sec
-
-        try {
-            reply = static_cast<redisReply*>(redisCommand(c,"CLUSTER NODES" ));
-            if (reply == nullptr)
-            {
-                std::cout << "No answer on CLUSTER NODES " << std::endl;
-                std::lock_guard<std::mutex> guard(con_config_mutex);
-                con_config.state = _state::disconnected;
-            }
-            else{
-
-                split(raw_string_parts, reply->str , boost::is_any_of("\n"));
-                // ===================================================
-                for (const auto &part : raw_string_parts)
-                {
-                    std::size_t found = part.find("myself");
-                    if (found!=std::string::npos)
-                        myself = part;
-                        break;
-
-                }
-                raw_string_parts.clear();
-                parse_cluster_nodes_string();
-                freeReplyObject(reply);
-
-            }
-        } catch (...) {
-            std::lock_guard<std::mutex> guard(con_config_mutex);
-            con_config.state = _state::disconnected;
-
-            redisFree(c);
-            connect();
-
-        }
-    }
-
 }
 
 void hiredis_client::connect()
