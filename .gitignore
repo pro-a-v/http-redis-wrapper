@@ -1,0 +1,8 @@
+# Ignore folders:
+build/
+CMakeFiles/
+
+# Ignore files:
+Makefile
+*.txt
+*.txt.user
