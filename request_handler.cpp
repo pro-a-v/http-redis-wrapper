@@ -49,7 +49,7 @@ void request_handler::handle_request(request& req, reply& rep)
       }
       else
       {
-          rep.content = "{ \"key\" : \""+ req.key +"\" , \"data\" : \""+ res +"\" }";
+          rep.content = "{ \"key\" : \""+ req.key +"\" , \"value\" : \""+ res +"\" }";
           rep.status = reply::ok;
           rep.headers.resize(2);
           rep.headers[0].name = "Content-Length";
@@ -78,7 +78,18 @@ void request_handler::handle_request(request& req, reply& rep)
   }
   else if (req.method.find("DELETE") != std::string::npos)
   {
-      ;
+      try
+      {
+          hiredis_mngr.del(req);
+          rep.status = reply::ok;
+          return;
+
+      }
+      catch(...)
+      {
+          rep = reply::stock_reply(reply::bad_request);
+          return;
+      }
   }
   else
   {

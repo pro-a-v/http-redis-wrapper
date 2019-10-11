@@ -59,8 +59,9 @@ _config hiredis_client::get_config()
 
 std::string hiredis_client::get(request& req)
 {
+    std::lock_guard<std::mutex> guard(con_config_mutex);
     std::string ret;
-    req.key = req.request_path.substr(1,req.request_path.length()-1);
+
     get_succsess = false;
     while(!get_succsess)
     {
@@ -139,6 +140,7 @@ void hiredis_client::parse_cluster_nodes_string()
 
 std::string hiredis_client::set(request& req)
 {
+    std::lock_guard<std::mutex> guard(con_config_mutex);
     rapidjson::Document d;
 
     if (d.Parse(req.body.c_str()).HasParseError()) {
@@ -185,6 +187,7 @@ std::string hiredis_client::set(request& req)
 
 void hiredis_client::del(request& req)
 {
+    std::lock_guard<std::mutex> guard(con_config_mutex);
     std::string ret;
     req.key = req.request_path.substr(1,req.request_path.length()-1);
     get_succsess = false;
